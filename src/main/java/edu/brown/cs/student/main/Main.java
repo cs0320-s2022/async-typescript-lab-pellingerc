@@ -1,25 +1,19 @@
 package edu.brown.cs.student.main;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Map;
-import java.util.Set;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
-import freemarker.template.Configuration;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
+import org.json.JSONException;
+import org.json.JSONObject;
 import spark.*;
-import spark.template.freemarker.FreeMarkerEngine;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.List;
 
 /**
  * The Main class of our project. This is where execution begins.
- *
  */
 public final class Main {
 
@@ -28,8 +22,7 @@ public final class Main {
   /**
    * The initial method called when execution begins.
    *
-   * @param args
-   *             An array of command line arguments
+   * @param args An array of command line arguments
    */
   public static void main(String[] args) {
     new Main(args).run();
@@ -45,9 +38,9 @@ public final class Main {
     OptionParser parser = new OptionParser();
     parser.accepts("gui");
     parser.accepts("port").withRequiredArg().ofType(Integer.class)
-        .defaultsTo(DEFAULT_PORT);
+            .defaultsTo(Main.DEFAULT_PORT);
 
-    OptionSet options = parser.parse(args);
+    OptionSet options = parser.parse(this.args);
     if (options.has("gui")) {
       runSparkServer((int) options.valueOf("port"));
     }
@@ -62,6 +55,8 @@ public final class Main {
     // TODO: create a call to Spark.post to make a POST request to a URL which
     // will handle getting matchmaking results for the input
     // It should only take in the route and a new ResultsHandler
+    Spark.post("/matches", new ResultsHandler());
+
     Spark.options("/*", (request, response) -> {
       String accessControlRequestHeaders = request.headers("Access-Control-Request-Headers");
       if (accessControlRequestHeaders != null) {
@@ -101,7 +96,7 @@ public final class Main {
 
   /**
    * Handles requests for horoscope matching on an input
-   * 
+   *
    * @return GSON which contains the result of MatchMaker.makeMatches
    */
   private static class ResultsHandler implements Route {
@@ -110,14 +105,29 @@ public final class Main {
       // TODO: Get JSONObject from req and use it to get the value of the sun, moon,
       // and rising
       // for generating matches
+      JSONObject obj = null;
+      String sun = null;
+      String moon = null;
+      String rising = null;
+      try {
+        obj = new JSONObject(req.body());
+        sun = obj.getString("sun");
+        moon = obj.getString("moon");
+        rising = obj.getString("rising");
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+
 
       // TODO: use the MatchMaker.makeMatches method to get matches
-
+      List<String> matches = MatchMaker.makeMatches(sun, moon, rising);
       // TODO: create an immutable map using the matches
-
+      ImmutableMap<String, List<String>> matches2 = ImmutableMap.of("matches", matches);
       // TODO: return a json of the suggestions (HINT: use GSON.toJson())
+
       Gson GSON = new Gson();
-      return null;
+      String json = GSON.toJson(matches2);
+      return json;
     }
   }
 }
